@@ -9,7 +9,7 @@ Exit colors follow Xk's Minimap: orange for a trigger, purple for enemy kills, c
 
 Press **Ctrl + Shift + M** or use **Enable minimap** in Settings to turn it on or off. Turning it off stops map rendering and updates.
 
-Based on [Xk's Minimap](https://github.com/Xkaka505/DRH-Mod-Minimap). Use one minimap mod at a time. This mod can run alongside Party DPS Meter, which uses the same player colors. Disable the older combined Mini map & DPS meter before using either replacement.
+Based on [Xk's Minimap](https://github.com/Xkaka505/DRH-Mod-Minimap). Use one minimap mod at a time. This mod can run alongside Party DPS Meter, which uses the same player colors.
 <!-- /drh:show -->
 
 ## Preview
