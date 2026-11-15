@@ -208,7 +208,7 @@ class Minimap extends Sprite {
         button.addEventListener(openfl.events.MouseEvent.MOUSE_DOWN, function(event:openfl.events.MouseEvent) {
             event.stopPropagation();
             resumeFollowAt = 0;
-            zoomLevel = Math.max(1, Math.min(3, zoomLevel + (increase ? 0.25 : -0.25)));
+            zoomLevel = Math.max(1, Math.min(3, zoomLevel + (increase ? 0.125 : -0.125)));
             placement.zoom = zoomLevel;
             placement.save();
             updateZoom();
