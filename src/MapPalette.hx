@@ -19,6 +19,10 @@ class MapPalette {
         this.hatch = hatch;
     }
 
+    public static function releaseCache():Void {
+        tileThemes = null;
+    }
+
     public static function detect(ctx:Context):MapPalette {
         if (tileThemes == null) {
             tileThemes = new Map();

@@ -26,6 +26,9 @@ class PanelControls {
 	var startX = 0.;
 	var startY = 0.;
 	var startScale = 1.;
+    var startWidth = 0.;
+    var startHeight = 0.;
+    public var resizeFree:(Float, Float)->Void;
 
 	public function new(panel:Sprite, context:Context, placement:PanelPlacement, width:Float, height:Float, defaultTop:Float) {
 		this.panel = panel;
@@ -40,6 +43,11 @@ class PanelControls {
 		panel.addEventListener(MouseEvent.MOUSE_MOVE, hover);
 		panel.addEventListener(MouseEvent.ROLL_OUT, leave);
 	}
+
+    public function setSize(width:Float, height:Float):Void {
+        panelWidth = width;
+        panelHeight = height;
+    }
 
 	public function layout(?height:Float):Void {
 		if (height != null) panelHeight = height;
@@ -87,11 +95,14 @@ class PanelControls {
 		var side = corner();
 		if (side == 0 && dragHeaderHeight > 0 && panel.mouseY > dragHeaderHeight) return;
 		mode = side == 0 ? 2 : side;
+        showCorner(side);
 		startMouseX = panel.parent.mouseX;
 		startMouseY = panel.parent.mouseY;
 		startX = panel.x;
 		startY = panel.y;
 		startScale = panel.scaleX;
+        startWidth = panelWidth;
+        startHeight = panelHeight;
 		gestureStage = panel.stage;
 		gestureStage.addEventListener(MouseEvent.MOUSE_MOVE, change);
 		gestureStage.addEventListener(MouseEvent.MOUSE_UP, finish);
@@ -108,8 +119,15 @@ class PanelControls {
 		if (mode == 2) {
 			panel.x = Math.max(0, Math.min(width - panelWidth * panel.scaleX, startX + dx));
 			panel.y = Math.max(0, Math.min(height - panelHeight * panel.scaleY, startY + dy));
+        } else if (!placement.aspectLocked && resizeFree != null) {
+            var right = startX + startWidth * startScale;
+            var available = mode < 0 ? right : width - startX;
+            var freeWidth = Math.min(available / startScale, startWidth + mode * dx / startScale);
+            var freeHeight = Math.min((height - startY) / startScale, startHeight + dy / startScale);
+            resizeFree(freeWidth, freeHeight);
+            panel.x = mode < 0 ? Math.max(0, right - panelWidth * startScale) : startX;
 		} else {
-			var right = startX + panelWidth * startScale;
+			var right = startX + startWidth * startScale;
 			var available = mode < 0 ? right : width - startX;
 			var limit = Math.min(MAX_SCALE, Math.min(available / panelWidth, (height - startY) / panelHeight));
 			var delta = (mode * dx * panelWidth + dy * panelHeight)
@@ -118,6 +136,7 @@ class PanelControls {
 			panel.scaleX = panel.scaleY = zoom;
 			panel.x = mode < 0 ? right - panelWidth * zoom : startX;
 		}
+        if (mode != 2) showCorner(mode);
 		placement.hasPosition = true;
 		placement.left = panel.x;
 		placement.top = panel.y;

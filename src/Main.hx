@@ -3,7 +3,8 @@ package mods.dungeon_minimap;
 import mods.api.Mod;
 import mods.api.Context;
 import mods.api.dungeon.Floor;
-import mods.api.settings.Flag;
+import mods.api.Subscription;
+import modding.ModSubscription;
 import openfl.ui.Keyboard;
 import openfl.events.Event;
 import openfl.Lib;
@@ -16,7 +17,8 @@ import distributedObjects.PlayerGameObjectOwner;
 class Main extends Mod {
 	var ctx:Context;
 	var minimap:Minimap;
-	var active:Flag;
+	var subscriptions:Array<Subscription> = [];
+    var coreSubscriptions:Array<ModSubscription> = [];
 	var refs:Refs = new Refs();
 	var dungeonStart:Int = -1;
 	// Gold: the game reports the account balance (basicCurrency), the minimap shows the gain of the run
@@ -29,66 +31,119 @@ class Main extends Mod {
 
 	var endingFloor:DistributedDungeonFloor;
 	var nextVisibilityCheck = 0;
-	var waitingRenderers = ["mStartRenderer", "mKillSwitchRenderer", "mVictoryRenderer", "mDefeatRenderer"];
+	var waitingRenderers = ["mKillSwitchRenderer", "mVictoryRenderer", "mDefeatRenderer"];
 	var mapPlacement:PanelPlacement = new PanelPlacement();
+    var resetToast:openfl.display.Sprite;
+    var resetToastUntil = 0;
 
 	override public function init(context:Context):Void {
 		ctx = context;
 		mapPlacement.load(context, "minimap");
-        active = context.settings.flag("active", "Enable minimap", "Draw the dungeon map and its markers.", true);
-        active.onChange(setActive);
-		ctx.overlay.visible = false;
+        context.settings.button("resetMinimapLayout", "Reset minimap size and location", "Reset").onPress(function() {
+            var saved = minimap == null ? mapPlacement.resetGeometry() : minimap.resetGeometry();
+            if (saved) showResetToast();
+        });
 
-		context.onFloorEnter(onFloorEnter);
-		context.onFloorExit(onFloorExit);
-		context.onHeroDespawned(function(hero) {
-			if (minimap != null) minimap.removeHeroMarker(hero.id);
-		});
-		context.keys.action("toggleMap", "Toggle minimap", "Enable or disable the dungeon minimap.", Keyboard.M, true, true)
-            .onPress(function() active.value = !active.value);
-		context.onTownEnter(function() refs.breakableWalls = new Map());
+        context.keys.action("toggleMap", "Toggle minimap", "Enable or disable the dungeon minimap.", Keyboard.M, true, true)
+            .onPress(function() {
+                mapPlacement.enabled = !mapPlacement.enabled;
+                mapPlacement.save();
+                if (mapPlacement.enabled) startTracking();
+                else stopTracking();
+            });
+        if (mapPlacement.enabled) startTracking();
+    }
 
-		var core = context.core;
-		core.onFieldReceived(function(obj, id, name) {
-			if (StringTools.endsWith(name, ".basicCurrency")) onGoldField(obj);
-			if (StringTools.endsWith(name, ".floorEnding") || StringTools.endsWith(name, ".dungeonEnding")) {
-				var floor = refs.localHero == null ? null : refs.localHero.distributedDungeonFloor;
-				if (floor != null && obj == floor.parentArea) {
-					endingFloor = floor;
-					ctx.overlay.visible = false;
-				}
-			}
-		});
-		core.onObjectReady(function(object) {
-			if (Std.isOfType(object, HeroGameObjectOwner)) {
-				refs.localHero = cast object;
-			} else if (Std.isOfType(object, PlayerGameObjectOwner)) {
-				playerOwner = object;
-			} else {
-                if (active.value) trackWall(Std.downcast(object, NPCGameObject));
-			}
-		});
-		core.onObjectGone(function(object) {
-			if (object == playerOwner) playerOwner = null;
-			if (object == refs.localHero) refs.localHero = null;
-            if (!active.value) return;
-			var npc = Std.downcast(object, NPCGameObject);
-			if (npc != null) refs.breakableWalls.remove(npc.id);
-			if (minimap != null && npc != null && npc.actorData != null && npc.isProp) minimap.invalidateWalls();
-		});
-	}
+    function startTracking():Void {
+        var core = ctx.core;
+        subscriptions.push(ctx.onFloorEnter(onFloorEnter));
+        subscriptions.push(ctx.onFloorExit(onFloorExit));
+        subscriptions.push(ctx.onHeroDespawned(function(hero) {
+            if (minimap != null) minimap.removeHeroMarker(hero.id);
+        }));
+        subscriptions.push(ctx.onTownEnter(function() {
+            refs.breakableWalls = new Map();
+            dungeonStart = -1;
+        }));
+
+        coreSubscriptions.push(core.onFieldReceived(function(obj, id, name) {
+            if (StringTools.endsWith(name, ".basicCurrency") && Std.isOfType(obj, PlayerGameObjectOwner)) {
+                playerOwner = obj;
+                onGoldField(obj);
+            }
+            if (StringTools.endsWith(name, ".floorEnding") || StringTools.endsWith(name, ".dungeonEnding")) {
+                var floor = liveFloor();
+                if (floor != null && obj == floor.parentArea) {
+                    endingFloor = floor;
+                    if (minimap != null) minimap.setShown(false);
+                }
+            }
+        }));
+        coreSubscriptions.push(core.onObjectReady(function(object) {
+            if (Std.isOfType(object, HeroGameObjectOwner)) refs.localHero = cast object;
+            else if (Std.isOfType(object, PlayerGameObjectOwner)) playerOwner = object;
+            else trackWall(Std.downcast(object, NPCGameObject));
+        }));
+        coreSubscriptions.push(core.onObjectGone(function(object) {
+            if (object == playerOwner) playerOwner = null;
+            if (object == refs.localHero) refs.localHero = null;
+            var npc = Std.downcast(object, NPCGameObject);
+            if (npc == null) return;
+            refs.breakableWalls.remove(npc.id);
+            if (minimap != null && npc.actorData != null && npc.isProp) minimap.invalidateWalls();
+        }));
+
+        var facade = core.facade;
+        var objects = facade == null ? null : facade.gameObjectManager;
+        if (objects != null) {
+            for (hero in ctx.state.heroes) {
+                if (!hero.local) continue;
+                refs.localHero = Std.downcast(objects.getReferenceFromId(hero.id), HeroGameObjectOwner);
+                break;
+            }
+        }
+        var floor = liveFloor();
+        if (floor != null && floor.remoteActors != null)
+            for (actor in floor.remoteActors.toArray()) trackWall(Std.downcast(actor, NPCGameObject));
+        var apiFloor = ctx.state.floor;
+        if (apiFloor != null) onFloorEnter(apiFloor);
+    }
+
+    function stopTracking():Void {
+        for (subscription in subscriptions) subscription.cancel();
+        for (subscription in coreSubscriptions) subscription.cancel();
+        subscriptions = [];
+        coreSubscriptions = [];
+        removeMinimap();
+        MapPalette.releaseCache();
+        refs = new Refs();
+        playerOwner = null;
+        endingFloor = null;
+        dungeonStart = -1;
+        gold = 0;
+        goldBase = null;
+        lastTotal = null;
+    }
+
+    function liveFloor():DistributedDungeonFloor {
+        var facade = ctx.core.facade;
+        var floor = ctx.state.floor;
+        var objects = facade == null ? null : facade.gameObjectManager;
+        return floor == null || objects == null ? null
+            : Std.downcast(objects.getReferenceFromId(floor.id), DistributedDungeonFloor);
+    }
 
 	function updateOverlay(event:Event):Void {
 		var now = Lib.getTimer();
-		if (now < nextVisibilityCheck) return;
+		if (minimap != null && minimap.visible && now < nextVisibilityCheck) return;
 		nextVisibilityCheck = now + 80;
 		var facade = ctx.core.facade;
-		var floor = refs.localHero == null ? null : refs.localHero.distributedDungeonFloor;
+        var floor = liveFloor();
 		var shown = facade != null && facade.mainStateMachine != null
 			&& facade.mainStateMachine.currentStateName == "RunState"
 			&& floor != null && !floor.isDestroyed && floor != endingFloor
 			&& minimap != null && !isWaiting(floor);
-		if (ctx.overlay.visible != shown) ctx.overlay.visible = shown;
+		if (minimap != null && minimap.visible != shown) minimap.setShown(shown);
 	}
 
 	function isWaiting(floor:DistributedDungeonFloor):Bool {
@@ -109,7 +164,7 @@ class Main extends Mod {
 			gold = 0;
 			goldBase = currentTotal();
 		}
-        if (active.value) createMinimap();
+        createMinimap();
     }
 
     function createMinimap():Void {
@@ -118,6 +173,7 @@ class Main extends Mod {
         minimap.setGold(gold);
         ctx.overlay.addChild(minimap);
         ctx.overlay.addEventListener(Event.ENTER_FRAME, updateOverlay);
+        updateOverlay(null);
     }
 
     function trackWall(npc:NPCGameObject):Void {
@@ -164,24 +220,46 @@ class Main extends Mod {
 	}
 
 	function onFloorExit(floor:Floor):Void {
-		ctx.overlay.visible = false;
 		endingFloor = null;
 		removeMinimap();
 	}
 
-    function setActive(enabled:Bool):Void {
-        if (!enabled) {
-            ctx.overlay.visible = false;
-            removeMinimap();
-            refs.breakableWalls = new Map();
-            return;
-        }
-        var floor = refs.localHero == null ? null : refs.localHero.distributedDungeonFloor;
-        if (floor == null || ctx.state.floor == null) return;
-        if (floor.remoteActors != null)
-            for (actor in floor.remoteActors.toArray()) trackWall(Std.downcast(actor, NPCGameObject));
-        if (dungeonStart < 0) dungeonStart = Lib.getTimer();
-        createMinimap();
+    function showResetToast():Void {
+        clearResetToast();
+        var toast = new openfl.display.Sprite();
+        toast.mouseEnabled = false;
+        toast.mouseChildren = false;
+        var label = new openfl.text.TextField();
+        label.defaultTextFormat = new openfl.text.TextFormat("_sans", 18, 0xF3DFC1, true);
+        label.autoSize = openfl.text.TextFieldAutoSize.LEFT;
+        label.text = "Minimap reset to its default size and location.";
+        label.selectable = false;
+        label.x = 16;
+        label.y = 9;
+        var w = label.width + 32;
+        var h = label.height + 18;
+        toast.graphics.lineStyle(1, 0x987E56);
+        toast.graphics.beginFill(0x17222B, 0.98);
+        toast.graphics.drawRoundRect(0, 0, w, h, 10, 10);
+        toast.graphics.endFill();
+        toast.addChild(label);
+        toast.x = Math.max(0, (ctx.viewWidth - w) / 2);
+        toast.y = Math.max(0, ctx.viewHeight - h - 36);
+        resetToast = toast;
+        resetToastUntil = Lib.getTimer() + 2400;
+        ctx.overlay.addChild(toast);
+        toast.addEventListener(Event.ENTER_FRAME, expireResetToast);
+    }
+
+    function expireResetToast(event:Event):Void {
+        if (Lib.getTimer() >= resetToastUntil) clearResetToast();
+    }
+
+    function clearResetToast():Void {
+        if (resetToast == null) return;
+        resetToast.removeEventListener(Event.ENTER_FRAME, expireResetToast);
+        if (resetToast.parent != null) resetToast.parent.removeChild(resetToast);
+        resetToast = null;
     }
 
 	function removeMinimap():Void {
@@ -194,7 +272,7 @@ class Main extends Mod {
 	}
 
 	override public function dispose():Void {
-		ctx.overlay.removeEventListener(Event.ENTER_FRAME, updateOverlay);
-		removeMinimap();
+        clearResetToast();
+        stopTracking();
 	}
 }

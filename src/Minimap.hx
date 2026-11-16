@@ -28,13 +28,13 @@ import distributedObjects.NPCGameObject;
 
 class Minimap extends Sprite {
 	// Layout
-	static inline var MAP_W = 180.;
-	static inline var MAP_H = 180.;
+	static inline var DEFAULT_MAP_W = PanelPlacement.DEFAULT_MAP_WIDTH;
+	static inline var DEFAULT_MAP_H = PanelPlacement.DEFAULT_MAP_HEIGHT;
 	static inline var HEADER_H = 28.;
 	static inline var FOOTER_H = 22.;
 	static inline var PAD = 6.;
-	static inline var PANEL_W = MAP_W + PAD * 2;
-	static inline var PANEL_H = MAP_H + HEADER_H + FOOTER_H + PAD * 2;
+	static inline var PANEL_W = DEFAULT_MAP_W + PAD * 2;
+	static inline var PANEL_H = DEFAULT_MAP_H + HEADER_H + FOOTER_H + PAD * 2;
 	static inline var TILE_SIZE = 900.;
 	public static inline final DEFAULT_TOP = 110.;
 	public static inline final DEFAULT_BOTTOM = DEFAULT_TOP + PANEL_H;
@@ -91,6 +91,7 @@ class Minimap extends Sprite {
 	var minX = 0.;
 	var minY = 0.;
 	var scale = 1.;
+	var markerScale = 1.;
 	var offX = 0.;
 	var offY = 0.;
 
@@ -103,6 +104,17 @@ class Minimap extends Sprite {
 
 	var controls:PanelControls;
 
+    var mapWidth = DEFAULT_MAP_W;
+    var mapHeight = DEFAULT_MAP_H;
+    var footer = new Sprite();
+    var zoomOut:Sprite;
+    var zoomIn:Sprite;
+    var lockButton = new Sprite();
+    var exitLayer = new Sprite();
+    var exitMarkers = new Sprite();
+    var clipAfter = -1;
+    var redrawAfter = 0;
+
 	public function new(ctx:Context, refs:Refs, startTime:Int, placement:PanelPlacement) {
 		super();
 		this.ctx = ctx;
@@ -113,10 +125,11 @@ class Minimap extends Sprite {
 		controls = new PanelControls(this, ctx, placement, PANEL_W, PANEL_H, DEFAULT_TOP);
 
 		controls.dragHeaderHeight = HEADER_H;
+        controls.resizeFree = resizePanel;
 		mouseChildren = true;
 		viewport.x = PAD;
 		viewport.y = HEADER_H + PAD;
-		viewport.scrollRect = new Rectangle(0, 0, MAP_W, MAP_H);
+		viewport.scrollRect = new Rectangle(0, 0, mapWidth, mapHeight);
 		viewport.mouseEnabled = true;
 		viewport.addEventListener(openfl.events.MouseEvent.MOUSE_DOWN, startPan);
 		viewport.mouseChildren = false;
@@ -125,32 +138,18 @@ class Minimap extends Sprite {
 		mapContent.x = -PAD;
 		mapContent.y = -HEADER_H - PAD;
 
-		// Panel background and separators
-		graphics.beginFill(0x17222B, 0.98);
-		graphics.lineStyle(1.5, 0x987E56, 0.96);
-		graphics.drawRoundRect(0, 0, PANEL_W, PANEL_H, 10, 10);
-		graphics.endFill();
-		graphics.lineStyle(0, 0, 0);
-		graphics.beginFill(0x212D35, 1);
-		graphics.drawRoundRect(5, 5, PANEL_W - 10, HEADER_H - 8, 5, 5);
-		graphics.endFill();
-		graphics.lineStyle(1, 0x6B5F4D, 0.9);
-		graphics.beginFill(0x344959, 1);
-		graphics.drawRoundRect(PAD, HEADER_H + PAD, MAP_W, MAP_H, 6, 6);
-		graphics.endFill();
-		graphics.lineStyle(0.85, 0x6B5F4D, 0.9);
-		graphics.moveTo(6, HEADER_H);
-		graphics.lineTo(PANEL_W - 6, HEADER_H);
-		graphics.moveTo(6, HEADER_H + MAP_H + PAD);
-		graphics.lineTo(PANEL_W - 6, HEADER_H + MAP_H + PAD);
 
 		map.x = PAD;
 		map.y = HEADER_H + PAD;
 		mapContent.addChild(map);
+        map.addChild(exitLayer);
 		wallLayer.x = map.x;
 		wallLayer.y = map.y;
-		wallLayer.scrollRect = new Rectangle(0, 0, MAP_W, MAP_H);
+		wallLayer.scrollRect = new Rectangle(0, 0, mapWidth, mapHeight);
 		mapContent.addChild(wallLayer);
+        exitMarkers.x = map.x;
+        exitMarkers.y = map.y;
+        mapContent.addChild(exitMarkers);
 		roomMask.x = map.x;
 		roomMask.y = map.y;
 		mapContent.addChild(roomMask);
@@ -159,7 +158,7 @@ class Minimap extends Sprite {
 		mapContent.addChild(monsterLayer);
 		breakableLayer.x = map.x;
 		breakableLayer.y = map.y;
-		breakableLayer.scrollRect = new Rectangle(0, 0, MAP_W, MAP_H);
+		breakableLayer.scrollRect = new Rectangle(0, 0, mapWidth, mapHeight);
 		breakableLayer.filters = [new GlowFilter(0xD488FF, 0.95, 5, 5, 2.5)];
 		mapContent.addChild(breakableLayer);
 		mapContent.addChild(chestLayer);
@@ -170,7 +169,8 @@ class Minimap extends Sprite {
 		var floorFormat = new TextFormat("_sans", 11, 0xF3DFC1, true);
 		floorFormat.align = TextFormatAlign.RIGHT;
 		floorLabel = label(floorFormat, PANEL_W - PAD - 75, 6, 75);
-		var footerTop = HEADER_H + MAP_H + PAD;
+		var footerTop = HEADER_H + DEFAULT_MAP_H + PAD;
+        addChild(footer);
 		var counterTop = footerTop + (FOOTER_H + PAD - 18) / 2;
 		var xpLeft = PAD + 54;
 		assets = new AssetLoadingComponent(ctx.core.facade);
@@ -178,18 +178,25 @@ class Minimap extends Sprite {
 		addCounterIcon("Resources/Art2D/Doobers/db_items_doobers.swf", "doober_xp_star", xpLeft + 0.75, footerTop, 16.5);
 		goldLabel = label(new TextFormat("Arial", 12, 0xFFD700, true), PAD + 22, counterTop, 30);
 		xpLabel = label(new TextFormat("Arial", 12, 0x58C9FF, true), xpLeft + 22, counterTop, 30);
+		footer.addChild(goldLabel);
+        footer.addChild(xpLabel);
 		goldLabel.text = "0";
 		xpLabel.text = "0";
-		addZoomButton(116, footerTop + 6, false);
-		addZoomButton(134, footerTop + 6, true);
-		drawCompass(162, footerTop + 14);
-        for (id in 60001...60007) loadChestIcon(id);
+		zoomOut = addZoomButton(116, footerTop + 6, false);
+		zoomIn = addZoomButton(134, footerTop + 6, true);
+		lockButton.y = footerTop + 6;
+        lockButton.buttonMode = true;
+        lockButton.addEventListener(openfl.events.MouseEvent.MOUSE_DOWN, toggleAspectLock);
+        footer.addChild(lockButton);
+        drawAspectLock();
+        resizePanel(placement.mapWidth + PAD * 2, placement.mapHeight + PANEL_H - DEFAULT_MAP_H);
+        for (id in 60001...60008) loadChestIcon(id);
 		loadExitModes();
 		controls.layout();
 		addEventListener(Event.ENTER_FRAME, onFrame);
 	}
 
-    function addZoomButton(x:Float, y:Float, increase:Bool):Void {
+    function addZoomButton(x:Float, y:Float, increase:Bool):Sprite {
         var button = new Sprite();
         button.x = x;
         button.y = y;
@@ -213,7 +220,8 @@ class Minimap extends Sprite {
             placement.save();
             updateZoom();
         });
-        addChild(button);
+        footer.addChild(button);
+        return button;
     }
 
     function startPan(event:openfl.events.MouseEvent):Void {
@@ -238,9 +246,9 @@ class Minimap extends Sprite {
     }
 
     function clampMapView():Void {
-        mapContent.x = Math.max(MAP_W - (PAD + MAP_W) * zoomLevel,
+        mapContent.x = Math.max(mapWidth - (PAD + mapWidth) * zoomLevel,
             Math.min(-PAD * zoomLevel, mapContent.x));
-        mapContent.y = Math.max(MAP_H - (HEADER_H + PAD + MAP_H) * zoomLevel,
+        mapContent.y = Math.max(mapHeight - (HEADER_H + PAD + mapHeight) * zoomLevel,
             Math.min(-(HEADER_H + PAD) * zoomLevel, mapContent.y));
     }
 
@@ -265,8 +273,8 @@ class Minimap extends Sprite {
         if (hero == null || !ready) return;
         var x = PAD + offX + (hero.positionX - minX) * scale;
         var y = HEADER_H + PAD + offY + (hero.positionY - minY) * scale;
-        mapContent.x = MAP_W / 2 - x * zoomLevel;
-        mapContent.y = MAP_H / 2 - y * zoomLevel;
+        mapContent.x = mapWidth / 2 - x * zoomLevel;
+        mapContent.y = mapHeight / 2 - y * zoomLevel;
         clampMapView();
     }
 
@@ -278,7 +286,7 @@ class Minimap extends Sprite {
             icon.scaleX = icon.scaleY = size / Math.max(art.width, art.height);
             icon.x = x + (19 - icon.width) / 2;
             icon.y = footerTop + (FOOTER_H + PAD - icon.height) / 2;
-            addChild(icon);
+            footer.addChild(icon);
         });
     }
 
@@ -339,21 +347,80 @@ class Minimap extends Sprite {
         };
     }
 
-	function drawCompass(x:Float, y:Float):Void {
-		graphics.lineStyle(0.7, 0x9C8A6D, 0.8);
-		graphics.drawCircle(x, y, 7);
-		graphics.moveTo(x - 9, y);
-		graphics.lineTo(x + 9, y);
-		graphics.lineStyle(0.7, 0x17222B);
-		graphics.beginFill(0xEDD4A4);
-		graphics.moveTo(x, y - 9);
-		graphics.lineTo(x + 3, y + 2);
-		graphics.lineTo(x, y + 1);
-		graphics.lineTo(x - 3, y + 2);
-		graphics.lineTo(x, y - 9);
+    public function resetGeometry():Bool {
+        controls.finish(null);
+        endPan(null);
+        resumeFollowAt = 0;
+        var saved = placement.resetGeometry();
+        resizePanel(PANEL_W, PANEL_H);
+        controls.layout();
+        return saved;
+    }
+
+    function resizePanel(width:Float, height:Float):Void {
+        var fixedHeight = PANEL_H - DEFAULT_MAP_H;
+        mapWidth = Math.max(DEFAULT_MAP_W, width - PAD * 2);
+        mapHeight = Math.max(70, height - fixedHeight);
+        placement.mapWidth = mapWidth;
+        placement.mapHeight = mapHeight;
+        var panelWidth = mapWidth + PAD * 2;
+        var panelHeight = mapHeight + fixedHeight;
+        controls.setSize(panelWidth, panelHeight);
+        viewport.scrollRect = new Rectangle(0, 0, mapWidth, mapHeight);
+        wallLayer.scrollRect = new Rectangle(0, 0, mapWidth, mapHeight);
+        breakableLayer.scrollRect = new Rectangle(0, 0, mapWidth, mapHeight);
+        floorLabel.x = panelWidth - PAD - 75;
+        footer.y = mapHeight - DEFAULT_MAP_H;
+        zoomOut.x = panelWidth - 76;
+        zoomIn.x = panelWidth - 58;
+        lockButton.x = panelWidth - 37;
+        graphics.clear();
+		// Panel background and separators
+		graphics.beginFill(0x17222B, 0.98);
+		graphics.lineStyle(1.5, 0x987E56, 0.96);
+		graphics.drawRoundRect(0, 0, panelWidth, panelHeight, 10, 10);
 		graphics.endFill();
-		label(new TextFormat("_sans", 9, 0xDBBC8C, true), x + 11, y - 7, 14).text = "N";
-	}
+		graphics.lineStyle(0, 0, 0);
+		graphics.beginFill(0x212D35, 1);
+		graphics.drawRoundRect(5, 5, panelWidth - 10, HEADER_H - 8, 5, 5);
+		graphics.endFill();
+		graphics.lineStyle(1, 0x6B5F4D, 0.9);
+		graphics.beginFill(0x344959, 1);
+		graphics.drawRoundRect(PAD, HEADER_H + PAD, mapWidth, mapHeight, 6, 6);
+		graphics.endFill();
+		graphics.lineStyle(0.85, 0x6B5F4D, 0.9);
+		graphics.moveTo(6, HEADER_H);
+		graphics.lineTo(panelWidth - 6, HEADER_H);
+		graphics.moveTo(6, HEADER_H + mapHeight + PAD);
+		graphics.lineTo(panelWidth - 6, HEADER_H + mapHeight + PAD);
+
+        ready = false;
+        redrawAfter = drawnFloor == null ? 0 : Lib.getTimer() + 100;
+    }
+
+    function toggleAspectLock(event:openfl.events.MouseEvent):Void {
+        event.stopPropagation();
+        placement.aspectLocked = !placement.aspectLocked;
+        drawAspectLock();
+        placement.save();
+    }
+
+    function drawAspectLock():Void {
+        var pen = lockButton.graphics;
+        pen.clear();
+        pen.lineStyle(0.8, 0x987E56);
+        pen.beginFill(0x293A43);
+        pen.drawRoundRect(0, 0, 18, 17, 4, 4);
+        pen.endFill();
+        pen.lineStyle(1.5, 0xF3DFC1);
+        pen.moveTo(6, placement.aspectLocked ? 8 : 6);
+        pen.lineTo(6, 5);
+        pen.curveTo(9, 1.5, 12, 5);
+        pen.lineTo(12, 8);
+        pen.beginFill(0xF3DFC1);
+        pen.drawRoundRect(4, 8, 10, 6, 2, 2);
+        pen.endFill();
+    }
 
 	function label(fmt:TextFormat, x:Float, y:Float, w:Float):TextField {
 		var t = new TextField();
@@ -387,8 +454,13 @@ class Minimap extends Sprite {
 
 	/** The floor the local hero is on (same path as the original AS3 code). */
 	function currentFloor():DistributedDungeonFloor {
-		var h = refs.localHero;
-		return h == null ? null : h.distributedDungeonFloor;
+        var hero = refs.localHero;
+        if (hero != null && hero.distributedDungeonFloor != null) return hero.distributedDungeonFloor;
+        var floor = ctx.state.floor;
+        var facade = ctx.core.facade;
+        var objects = facade == null ? null : facade.gameObjectManager;
+        return floor == null || objects == null ? null
+            : Std.downcast(objects.getReferenceFromId(floor.id), DistributedDungeonFloor);
 	}
 
 	/** Tile corners of the floor, without filler tiles. */
@@ -429,7 +501,8 @@ class Minimap extends Sprite {
         var floor = ctx.state.floor;
         if (floor == null) return;
         for (tile in floor.tiles) {
-            if (tile.category != "EXIT_TILE") continue;
+            if (tile.category == "FILLER_TILE") continue;
+            if (tile.category != "EXIT_TILE" && !exitModes.exists(tile.id)) continue;
             exitTiles.set(posKey(tile.x, tile.y), exitModes.get(tile.id));
             exitPositions.push(new Vector3D(tile.x, tile.y));
         }
@@ -442,8 +515,13 @@ class Minimap extends Sprite {
         var grid = floor == null ? null : floor.tileGrid;
         for (position in exitPositions) {
             var key = posKey(position.x, position.y);
-            var tile = grid == null ? null : grid.getTileAtPosition(position);
-            var color = GateColors.forTile(tile, exitTiles.get(key));
+            var color = GateColors.UNKNOWN;
+            try {
+                var tile = grid == null ? null : grid.getTileAtPosition(position);
+                color = GateColors.forTile(tile, exitTiles.get(key));
+            } catch (_:Dynamic) {
+                // Keep the exit visible while its actors are unavailable.
+            }
             if (exitColors.get(key) != color) {
                 exitColors.set(key, color);
                 changed = true;
@@ -489,9 +567,15 @@ class Minimap extends Sprite {
 					if (xpLabel.text != xp) xpLabel.text = xp;
 				}
 			}
-			if (!ready) drawDungeonIfReady();
+
 		}
+        if (!ready && now >= redrawAfter) drawDungeonIfReady();
 		if (!ready) return;
+        if (clipAfter >= 0 && now >= clipAfter && floor != null && floor.box2DWorld != null) {
+            clipAfter = -1;
+            updateWalls();
+            clipExitToWalls();
+        }
 
 		updateZoom();
 		updateHeroMarkers();
@@ -503,8 +587,11 @@ class Minimap extends Sprite {
 		}
 		if (now >= nextWallRefresh) {
 			nextWallRefresh = now + WALL_REFRESH_MS;
-			if (tileSignature() != drawnTileSignature || refreshExitColors()) drawDungeonIfReady();
-			else updateWalls();
+			if (tileSignature() != drawnTileSignature) drawDungeonIfReady();
+            else {
+                if (refreshExitColors()) drawExitTiles();
+                updateWalls();
+            }
 		}
 	}
 
@@ -635,25 +722,29 @@ class Minimap extends Sprite {
             clippedExit.bitmapData.dispose();
             clippedExit = null;
         }
-        var size = 540;
-        var transform = new openfl.geom.Matrix();
-        transform.scale(3, 3);
-        var boundary = new BitmapData(size, size, true, 0);
+        if (exitPositions.length == 0) return;
+        var density = 540 / Math.max(mapWidth, mapHeight);
+        var pixelWidth = Std.int(Math.ceil(mapWidth * density));
+        var pixelHeight = Std.int(Math.ceil(mapHeight * density));
+        var transform = new Matrix(density, 0, 0, density);
+        var boundary = new BitmapData(pixelWidth, pixelHeight, true, 0);
         boundary.draw(wallLayer, transform);
-        var exterior = new BitmapData(size, size, false, 0xFFFFFF);
-        for (y in 0...size) for (x in 0...size)
+        var exterior = new BitmapData(pixelWidth, pixelHeight, false, 0xFFFFFF);
+        for (y in 0...pixelHeight) for (x in 0...pixelWidth)
             if ((boundary.getPixel32(x, y) >>> 24) > 16) exterior.setPixel(x, y, 0);
         // Seed each edge, including disconnected exterior pockets at tile edges.
-        for (i in 0...size) {
-            if (exterior.getPixel(i, 0) == 0xFFFFFF) exterior.floodFill(i, 0, 0x123456);
-            if (exterior.getPixel(i, size - 1) == 0xFFFFFF) exterior.floodFill(i, size - 1, 0x123456);
-            if (exterior.getPixel(0, i) == 0xFFFFFF) exterior.floodFill(0, i, 0x123456);
-            if (exterior.getPixel(size - 1, i) == 0xFFFFFF) exterior.floodFill(size - 1, i, 0x123456);
+        for (x in 0...pixelWidth) {
+            if (exterior.getPixel(x, 0) == 0xFFFFFF) exterior.floodFill(x, 0, 0x123456);
+            if (exterior.getPixel(x, pixelHeight - 1) == 0xFFFFFF) exterior.floodFill(x, pixelHeight - 1, 0x123456);
         }
-        var background = new BitmapData(size, size, true, 0);
-        background.draw(map, transform);
-        var correction = new BitmapData(size, size, true, 0);
-        for (y in 0...size) for (x in 0...size) {
+        for (y in 0...pixelHeight) {
+            if (exterior.getPixel(0, y) == 0xFFFFFF) exterior.floodFill(0, y, 0x123456);
+            if (exterior.getPixel(pixelWidth - 1, y) == 0xFFFFFF) exterior.floodFill(pixelWidth - 1, y, 0x123456);
+        }
+        var background = new BitmapData(pixelWidth, pixelHeight, true, 0);
+        background.draw(exitLayer, transform);
+        var correction = new BitmapData(pixelWidth, pixelHeight, true, 0);
+        for (y in 0...pixelHeight) for (x in 0...pixelWidth) {
             if (exterior.getPixel(x, y) == 0x123456 && GateColors.isGateColor(background.getPixel(x, y))) {
                 var color = ((x + y) % 18 < 2) ? palette.hatch : palette.outside;
                 correction.setPixel32(x, y, 0xFF000000 | color);
@@ -663,7 +754,7 @@ class Minimap extends Sprite {
         exterior.dispose();
         background.dispose();
         clippedExit = new Bitmap(correction);
-        clippedExit.scaleX = clippedExit.scaleY = 1 / 3;
+        clippedExit.scaleX = clippedExit.scaleY = 1 / density;
         map.addChild(clippedExit);
     }
 
@@ -725,7 +816,6 @@ class Minimap extends Sprite {
 					|| Reflect.field(chest, "hasOwnership") == true) continue;
 				var kind = chest.mDooberData.ChestId;
 				var art = chestArt.get(kind);
-				if (kind == 60007) art = chestArt.get(60006);
 				if (art == null) continue;
 				var marker = chestMarkers.get(chest.id);
 				if (marker == null) {
@@ -740,6 +830,7 @@ class Minimap extends Sprite {
 					chestMarkers.set(chest.id, marker);
 					chestLayer.addChild(marker);
 				}
+				marker.scaleX = marker.scaleY = markerScale;
 				marker.x = PAD + offX + (chest.positionX - minX) * scale;
 				marker.y = HEADER_H + PAD + offY + (chest.positionY - minY) * scale;
 				visibleIds.set(chest.id, true);
@@ -778,9 +869,12 @@ class Minimap extends Sprite {
 		}
 		var worldW = maxX - minX + TILE_SIZE;
 		var worldH = maxY - minY + TILE_SIZE;
-		scale = Math.min((MAP_W - 12) / worldW, (MAP_H - 12) / worldH);
-		offX = (MAP_W - worldW * scale) * 0.5;
-		offY = (MAP_H - worldH * scale) * 0.5;
+		scale = Math.min((mapWidth - 12) / worldW, (mapHeight - 12) / worldH);
+        // Use the same fitted floor scale for both axes of each marker.
+        var defaultScale = Math.min((DEFAULT_MAP_W - 12) / worldW, (DEFAULT_MAP_H - 12) / worldH);
+        markerScale = scale / defaultScale;
+		offX = (mapWidth - worldW * scale) * 0.5;
+		offY = (mapHeight - worldH * scale) * 0.5;
 
 		if (clippedExit != null) {
 			map.removeChild(clippedExit);
@@ -790,7 +884,7 @@ class Minimap extends Sprite {
 		var pen = map.graphics;
 		pen.clear();
 		pen.beginFill(palette.outside);
-		pen.drawRect(0, 0, MAP_W, MAP_H);
+		pen.drawRect(0, 0, mapWidth, mapHeight);
 		pen.endFill();
 		pen.lineStyle(0.65, palette.hatch, 0.28);
 		drawMapHatching();
@@ -803,15 +897,16 @@ class Minimap extends Sprite {
 			var x = offX + (p.x - minX) * scale;
 			var y = offY + (p.y - minY) * scale;
 			roomMask.graphics.drawRect(x, y, tileSize, tileSize);
-			var color = exitColors.get(posKey(p.x, p.y));
-			pen.beginFill(color == null ? palette.floor : color);
+			pen.beginFill(palette.floor);
 			pen.drawRect(x, y, tileSize, tileSize);
 			pen.endFill();
 		}
 		roomMask.graphics.endFill();
 
+		drawExitTiles();
 		updateWalls();
-		clipExitToWalls();
+        // Let the first map frame render before computing the exit clipping.
+        clipAfter = exitPositions.length == 0 ? -1 : Lib.getTimer() + 120;
 		drawnFloor = currentFloor();
 		nextMarkerRefresh = 0;
 		nextWallRefresh = Lib.getTimer() + WALL_REFRESH_MS;
@@ -820,17 +915,46 @@ class Minimap extends Sprite {
 		ready = true;
 	}
 
+    function drawExitTiles():Void {
+        var pen = exitLayer.graphics;
+        pen.clear();
+        var markers = exitMarkers.graphics;
+        markers.clear();
+        var size = TILE_SIZE * scale;
+        for (position in exitPositions) {
+            var color = exitColors.get(posKey(position.x, position.y));
+            if (color == null) continue;
+            pen.beginFill(color);
+            var x = offX + (position.x - minX) * scale;
+            var y = offY + (position.y - minY) * scale;
+            pen.drawRect(x, y, size, size);
+            pen.endFill();
+            // An outlined marker remains readable even if wall clipping hides the fill.
+            var radius = Math.max(2, Math.min(3.5, size * 0.17));
+            var mx = x + size / 2;
+            var my = y + Math.max(radius, size * 0.23);
+            markers.lineStyle(0.85, 0x171C23);
+            markers.beginFill(color);
+            markers.moveTo(mx, my - radius);
+            markers.lineTo(mx + radius, my);
+            markers.lineTo(mx, my + radius);
+            markers.lineTo(mx - radius, my);
+            markers.lineTo(mx, my - radius);
+            markers.endFill();
+        }
+    }
+
 	/** Draw the whole field first. Opaque room fills cover the lines inside each playable room. */
 	function drawMapHatching():Void {
 		var pen = map.graphics;
 		var spacing = 6.;
-		var first = Math.ceil(-MAP_H / spacing);
-		var last = Math.floor(MAP_W / spacing);
+		var first = Math.ceil(-mapHeight / spacing);
+		var last = Math.floor(mapWidth / spacing);
 		for (i in first...(last + 1)) {
 			var offset = i * spacing;
 			var x = Math.max(0, offset);
 			var y = Math.max(0, -offset);
-			var length = Math.min(MAP_W - x, MAP_H - y);
+			var length = Math.min(mapWidth - x, mapHeight - y);
 			if (length <= 0) continue;
 			pen.moveTo(x, y);
 			pen.lineTo(x + length, y + length);
@@ -869,6 +993,7 @@ class Minimap extends Sprite {
 				markersByHero.set(hero.id, marker);
 				mapContent.addChildAt(marker, mapContent.getChildIndex(chestLayer));
 			}
+			marker.scaleX = marker.scaleY = markerScale;
 			marker.x = mx;
 			marker.y = my;
 		}

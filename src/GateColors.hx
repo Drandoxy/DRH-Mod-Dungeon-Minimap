@@ -7,18 +7,19 @@ class GateColors {
     static inline final CYAN = 0x2EC4D6;
     static inline final GREEN = 0x3FB950;
     static inline final RED = 0xD93636;
-    static inline final GREY = 0x8A8F98;
+    public static inline final UNKNOWN = 0x8A8F98;
 
     public static function isGateColor(color:Int):Bool {
         return color == ORANGE || color == PURPLE || color == CYAN ||
-            color == GREEN || color == RED || color == GREY;
+            color == GREEN || color == RED || color == UNKNOWN;
     }
 
     public static function forTile(tile:Dynamic, mode:String):Int {
-        if (tile == null) return GREY;
+        if (mode == "BOSS_CLEAR") return PURPLE;
+        if (tile == null) return UNKNOWN;
         var actors:Dynamic = Reflect.getProperty(tile, "NPCGameObjects");
         if (mode == "PLATE_KILLS_TRAP") return PURPLE;
-        if (actors == null || mode == "NONE") return GREY;
+        if (actors == null || mode == "NONE") return UNKNOWN;
         var found = false;
         var closed = false;
         var unreadable = false;
@@ -28,7 +29,7 @@ class GateColors {
             entries = cast actors;
         } else {
             var enumerate = Reflect.field(actors, "iterator");
-            if (enumerate == null) return GREY;
+            if (enumerate == null) return UNKNOWN;
             var iterator:Dynamic = Reflect.callMethod(actors, enumerate, []);
             while (iterator.hasNext()) entries.push(iterator.next());
         }
@@ -38,7 +39,7 @@ class GateColors {
             var suffix = type % 10000;
             var triggered = Reflect.getProperty(actor, "triggerState");
             if (mode == "PLATE_TRAP" && suffix == 301)
-                return triggered == true ? GREEN : (triggered == false ? ORANGE : GREY);
+                return triggered == true ? GREEN : (triggered == false ? ORANGE : UNKNOWN);
             if (suffix != 101 && suffix != 201) continue;
             found = true;
             if (triggered == false) continue;
@@ -58,6 +59,6 @@ class GateColors {
             };
         }
         if (found && !unreadable) return GREEN;
-        return GREY;
+        return UNKNOWN;
     }
 }
