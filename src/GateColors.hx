@@ -40,7 +40,10 @@ class GateColors {
             var triggered = Reflect.getProperty(actor, "triggerState");
             if (mode == "PLATE_TRAP" && suffix == 301)
                 return triggered == true ? GREEN : (triggered == false ? ORANGE : UNKNOWN);
-            if (suffix != 101 && suffix != 201) continue;
+            var gm = Reflect.getProperty(actor, "gmNpc");
+            var constant = gm == null ? null : Reflect.field(gm, "Constant");
+            var isExit = constant != null && Std.string(constant).indexOf("EXIT_GATE") >= 0;
+            if (suffix != 101 && suffix != 201 && !isExit) continue;
             found = true;
             if (triggered == false) continue;
             if (triggered != true) {
