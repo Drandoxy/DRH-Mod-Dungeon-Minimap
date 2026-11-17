@@ -5,6 +5,8 @@ A zoomable map with dungeon-specific palettes, walls, purple breakable-wall mark
 
 Use **- / +** to zoom. At higher zoom, the map follows you. Drag inside the map to look around, or drag the header to move the panel. Drag a bottom corner to resize. Click the lock beside the zoom buttons to resize width and height independently. At 1x zoom, the whole floor fits the panel without stretching. The mod remembers your layout, zoom, and lock setting. Use **Reset minimap size and location** in Settings to restore the default panel size and position.
 
+Click the **castle button** to show full gate type codes below the gold and XP counters. Green means gate details are enabled. For a color report, include the map, these details, and the gate in the game in your screenshot. Details include the tile ID, assigned mode, map color, raw gate type and name, and trigger/breakable states. Click again to hide them.
+
 Exit colors follow Xk's Minimap: orange for a trigger, purple for enemy kills, cyan for a breakable blocker, green for open, red for closed, and grey for unknown.
 
 Press **Ctrl + Shift + M** to turn the map on or off. You can rebind it in Settings → Controls. Turning it off releases the map graphics and stops updates. The mod remembers whether it was on.
@@ -54,3 +56,5 @@ One screenshot per palette, ordered by first appearance in the campaign.
 </table>
 
 Requires DRH 18 and Mod API 1.4.0 or a compatible later 1.x version. [GPLv3](LICENSE).
+
+Footer icons are from [Lucide](https://lucide.dev), with their license included in `Resources/lucide-LICENSE.txt`.

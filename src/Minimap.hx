@@ -31,7 +31,7 @@ class Minimap extends Sprite {
 	static inline var DEFAULT_MAP_W = PanelPlacement.DEFAULT_MAP_WIDTH;
 	static inline var DEFAULT_MAP_H = PanelPlacement.DEFAULT_MAP_HEIGHT;
 	static inline var HEADER_H = 28.;
-	static inline var FOOTER_H = 22.;
+	static inline var FOOTER_H = 28.;
 	static inline var PAD = 6.;
 	static inline var PANEL_W = DEFAULT_MAP_W + PAD * 2;
 	static inline var PANEL_H = DEFAULT_MAP_H + HEADER_H + FOOTER_H + PAD * 2;
@@ -110,6 +110,11 @@ class Minimap extends Sprite {
     var zoomOut:Sprite;
     var zoomIn:Sprite;
     var lockButton = new Sprite();
+    var gateButton=new Sprite();
+    var gateLabel:TextField;
+    var gateDetailsHeight=0.;
+    var gateCodes=false;
+    var buttons:Array<Sprite>=[];
     var exitLayer = new Sprite();
     var exitMarkers = new Sprite();
     var clipAfter = -1;
@@ -172,22 +177,24 @@ class Minimap extends Sprite {
 		var footerTop = HEADER_H + DEFAULT_MAP_H + PAD;
         addChild(footer);
 		var counterTop = footerTop + (FOOTER_H + PAD - 18) / 2;
-		var xpLeft = PAD + 54;
+		var xpLeft = PAD + 48;
 		assets = new AssetLoadingComponent(ctx.core.facade);
-		addCounterIcon("Resources/Art2D/UI/db_UI_HUD.swf", "coin_icon", PAD, footerTop, 19);
-		addCounterIcon("Resources/Art2D/Doobers/db_items_doobers.swf", "doober_xp_star", xpLeft + 0.75, footerTop, 16.5);
-		goldLabel = label(new TextFormat("Arial", 12, 0xFFD700, true), PAD + 22, counterTop, 30);
-		xpLabel = label(new TextFormat("Arial", 12, 0x58C9FF, true), xpLeft + 22, counterTop, 30);
+		addLucideCounter("coins",PAD,footerTop+9,0xFFD76A);
+		addLucideCounter("sparkles",xpLeft,footerTop+9,0x58C9FF);
+		goldLabel = label(new TextFormat("Arial", 12, 0xFFD700, true), PAD + 18, counterTop, 28);
+		xpLabel = label(new TextFormat("Arial", 12, 0x58C9FF, true), xpLeft + 18, counterTop, 24);
 		footer.addChild(goldLabel);
         footer.addChild(xpLabel);
 		goldLabel.text = "0";
 		xpLabel.text = "0";
 		zoomOut = addZoomButton(116, footerTop + 6, false);
 		zoomIn = addZoomButton(134, footerTop + 6, true);
-		lockButton.y = footerTop + 6;
-        lockButton.buttonMode = true;
-        lockButton.addEventListener(openfl.events.MouseEvent.MOUSE_DOWN, toggleAspectLock);
-        footer.addChild(lockButton);
+        lockButton=makeButton("lock-keyhole",footerTop+7,toggleAspectLock);
+        gateButton=makeButton("castle",footerTop+7,function(event:openfl.events.MouseEvent){
+            event.stopPropagation();gateCodes=!gateCodes;drawButton(gateButton,"castle",gateCodes);refreshGateDetails();
+        });
+        gateLabel=label(new TextFormat("_sans",10,0xDAEDD8,true),PAD,footerTop+FOOTER_H+PAD,DEFAULT_MAP_W);
+        gateLabel.multiline=true;gateLabel.wordWrap=true;gateLabel.visible=false;footer.addChild(gateLabel);
         drawAspectLock();
         resizePanel(placement.mapWidth + PAD * 2, placement.mapHeight + PANEL_H - DEFAULT_MAP_H);
         for (id in 60001...60008) loadChestIcon(id);
@@ -196,32 +203,53 @@ class Minimap extends Sprite {
 		addEventListener(Event.ENTER_FRAME, onFrame);
 	}
 
-    function addZoomButton(x:Float, y:Float, increase:Bool):Sprite {
-        var button = new Sprite();
-        button.x = x;
-        button.y = y;
-        button.buttonMode = true;
-        button.graphics.lineStyle(0.8, 0x987E56);
-        button.graphics.beginFill(0x293A43);
-        button.graphics.drawRoundRect(0, 0, 15, 17, 4, 4);
-        button.graphics.endFill();
-        button.graphics.lineStyle(1.5, 0xF3DFC1);
-        button.graphics.moveTo(4, 8.5);
-        button.graphics.lineTo(11, 8.5);
-        if (increase) {
-            button.graphics.moveTo(7.5, 5);
-            button.graphics.lineTo(7.5, 12);
-        }
-        button.addEventListener(openfl.events.MouseEvent.MOUSE_DOWN, function(event:openfl.events.MouseEvent) {
-            event.stopPropagation();
-            resumeFollowAt = 0;
-            zoomLevel = Math.max(1, Math.min(3, zoomLevel + (increase ? 0.125 : -0.125)));
-            placement.zoom = zoomLevel;
-            placement.save();
-            updateZoom();
+    function addLucideCounter(name:String,x:Float,y:Float,color:Int):Void{
+        var icon=new Sprite();MapIcons.draw(icon,name,16,color);icon.x=x;icon.y=y;icon.mouseEnabled=false;footer.addChild(icon);
+    }
+
+    function drawButton(button:Sprite,name:String,active:Bool,hover:Bool=false):Void{
+        var g=button.graphics;g.clear();g.lineStyle(1,active?0x82DE91:0x536977);
+        g.beginFill(active?0xA5E8AD:(hover?0x3E5665:0x293D49));g.drawRoundRect(0,0,18,20,6,6);g.endFill();
+        var icon:Sprite=cast button.getChildAt(0);MapIcons.draw(icon,name,14,active?0x15572C:0xE8F0F5);icon.x=2;icon.y=3;
+    }
+
+    function makeButton(name:String,y:Float,action:openfl.events.MouseEvent->Void):Sprite{
+        var button=new Sprite();button.buttonMode=true;button.mouseChildren=false;button.y=y;
+        var icon=new Sprite();icon.mouseEnabled=false;button.addChild(icon);drawButton(button,name,false);
+        button.addEventListener(openfl.events.MouseEvent.MOUSE_DOWN,action);
+        button.addEventListener(openfl.events.MouseEvent.ROLL_OVER,function(_){drawButton(button,button==lockButton?(placement.aspectLocked?"lock-keyhole":"lock-keyhole-open"):name,button==gateButton&&gateCodes,true);});
+        button.addEventListener(openfl.events.MouseEvent.ROLL_OUT,function(_){drawButton(button,button==lockButton?(placement.aspectLocked?"lock-keyhole":"lock-keyhole-open"):name,button==gateButton&&gateCodes);});
+        buttons.push(button);footer.addChild(button);return button;
+    }
+
+    function addZoomButton(x:Float,y:Float,increase:Bool):Sprite{
+        return makeButton(increase?"zoom-in":"zoom-out",y,function(event:openfl.events.MouseEvent){
+            event.stopPropagation();resumeFollowAt=0;zoomLevel=Math.max(1,Math.min(3,zoomLevel+(increase?.125:-.125)));
+            placement.zoom=zoomLevel;placement.save();updateZoom();
         });
-        footer.addChild(button);
-        return button;
+    }
+
+    function refreshGateDetails():Void{
+        if(gateLabel==null)return;
+        gateLabel.visible=gateCodes;
+        var content:Array<String>=[];
+        if(gateCodes){
+            var floor=currentFloor();var grid=floor==null?null:floor.tileGrid;
+            var apiFloor=ctx.state.floor;
+            for(position in exitPositions){
+                var key=posKey(position.x,position.y);var id="unknown";
+                if(apiFloor!=null)for(t in apiFloor.tiles)if(t.x==position.x&&t.y==position.y){id=t.id;break;}
+                var tile:Dynamic=null;try{if(grid!=null)tile=grid.getTileAtPosition(position);}catch(_:Dynamic){}
+                var mode=exitTiles.get(key);var color=exitColors.get(key);
+                content.push(GateDetails.describe(id,mode,color,tile));
+            }
+            if(content.length==0)content.push("Gate data not available yet.");
+        }
+        var text=content.join("\n\n");var changed=gateLabel.text!=text;gateLabel.width=mapWidth;
+        if(changed)gateLabel.text=text;
+        var height=gateCodes?Math.max(24,gateLabel.textHeight+8):0.;
+        gateLabel.height=height;
+        if(height!=gateDetailsHeight){gateDetailsHeight=height;resizePanel(mapWidth+PAD*2,mapHeight+(PANEL_H-DEFAULT_MAP_H)+height);controls.layout();}
     }
 
     function startPan(event:openfl.events.MouseEvent):Void {
@@ -352,13 +380,13 @@ class Minimap extends Sprite {
         endPan(null);
         resumeFollowAt = 0;
         var saved = placement.resetGeometry();
-        resizePanel(PANEL_W, PANEL_H);
+        resizePanel(PANEL_W, PANEL_H+gateDetailsHeight);
         controls.layout();
         return saved;
     }
 
     function resizePanel(width:Float, height:Float):Void {
-        var fixedHeight = PANEL_H - DEFAULT_MAP_H;
+        var fixedHeight = PANEL_H - DEFAULT_MAP_H + gateDetailsHeight;
         mapWidth = Math.max(DEFAULT_MAP_W, width - PAD * 2);
         mapHeight = Math.max(70, height - fixedHeight);
         placement.mapWidth = mapWidth;
@@ -371,9 +399,11 @@ class Minimap extends Sprite {
         breakableLayer.scrollRect = new Rectangle(0, 0, mapWidth, mapHeight);
         floorLabel.x = panelWidth - PAD - 75;
         footer.y = mapHeight - DEFAULT_MAP_H;
-        zoomOut.x = panelWidth - 76;
-        zoomIn.x = panelWidth - 58;
-        lockButton.x = panelWidth - 37;
+        gateButton.x=panelWidth-86;
+        zoomOut.x = panelWidth - 66;
+        zoomIn.x = panelWidth - 46;
+        lockButton.x = panelWidth - 26;
+        if(gateLabel!=null)gateLabel.width=mapWidth;
         graphics.clear();
 		// Panel background and separators
 		graphics.beginFill(0x17222B, 0.98);
@@ -406,20 +436,7 @@ class Minimap extends Sprite {
     }
 
     function drawAspectLock():Void {
-        var pen = lockButton.graphics;
-        pen.clear();
-        pen.lineStyle(0.8, 0x987E56);
-        pen.beginFill(0x293A43);
-        pen.drawRoundRect(0, 0, 18, 17, 4, 4);
-        pen.endFill();
-        pen.lineStyle(1.5, 0xF3DFC1);
-        pen.moveTo(6, placement.aspectLocked ? 8 : 6);
-        pen.lineTo(6, 5);
-        pen.curveTo(9, 1.5, 12, 5);
-        pen.lineTo(12, 8);
-        pen.beginFill(0xF3DFC1);
-        pen.drawRoundRect(4, 8, 10, 6, 2, 2);
-        pen.endFill();
+        drawButton(lockButton,placement.aspectLocked?"lock-keyhole":"lock-keyhole-open",false);
     }
 
 	function label(fmt:TextFormat, x:Float, y:Float, w:Float):TextField {
@@ -592,6 +609,7 @@ class Minimap extends Sprite {
                 if (refreshExitColors()) drawExitTiles();
                 updateWalls();
             }
+            if(gateCodes)refreshGateDetails();
 		}
 	}
 
@@ -1022,6 +1040,7 @@ class Minimap extends Sprite {
 		counterArt = [];
 		chestArt = new Map();
 		chestMarkers = new Map();
+		for(button in buttons)button.removeChildren();buttons=[];
 		controls.destroy();
 		removeEventListener(Event.ENTER_FRAME, onFrame);
 		graphics.clear();

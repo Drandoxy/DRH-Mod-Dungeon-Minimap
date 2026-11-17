@@ -142,9 +142,15 @@ class Main extends Mod {
 		var shown = facade != null && facade.mainStateMachine != null
 			&& facade.mainStateMachine.currentStateName == "RunState"
 			&& floor != null && !floor.isDestroyed && floor != endingFloor
-			&& minimap != null && !isWaiting(floor);
+			&& minimap != null && !isWaiting(floor) && !settingsOpen();
 		if (minimap != null && minimap.visible != shown) minimap.setShown(shown);
 	}
+
+    function settingsOpen():Bool {
+        var facade=ctx.core.facade;var nav=facade==null?null:facade.menuNavigationController;
+        return nav!=null&&(nav.getTopUILayer()=="SETTINGS_MENU"
+            || (nav.layerDepth>1&&nav.getAllCurrentLayers().indexOf("SETTINGS_MENU, ")>=0));
+    }
 
 	function isWaiting(floor:DistributedDungeonFloor):Bool {
 		if (Reflect.field(floor, "mRevealed") == false) return true;
