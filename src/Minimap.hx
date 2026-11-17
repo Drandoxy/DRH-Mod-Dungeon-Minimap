@@ -224,7 +224,7 @@ class Minimap extends Sprite {
 
     function addZoomButton(x:Float,y:Float,increase:Bool):Sprite{
         return makeButton(increase?"zoom-in":"zoom-out",y,function(event:openfl.events.MouseEvent){
-            event.stopPropagation();resumeFollowAt=0;zoomLevel=Math.max(1,Math.min(3,zoomLevel+(increase?.125:-.125)));
+            event.stopPropagation();resumeFollowAt=0;zoomLevel=Math.max(1,Math.min(3,zoomLevel+(increase ? 0.125 : -0.125)));
             placement.zoom=zoomLevel;placement.save();updateZoom();
         });
     }
