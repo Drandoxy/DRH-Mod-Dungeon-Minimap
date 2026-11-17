@@ -57,4 +57,4 @@ One screenshot per palette, ordered by first appearance in the campaign.
 
 Requires DRH 18 and Mod API 1.4.0 or a compatible later 1.x version. [GPLv3](LICENSE).
 
-Footer icons are from [Lucide](https://lucide.dev), with their license included in `Resources/lucide-LICENSE.txt`.
+Footer button icons are from [Lucide](https://lucide.dev), with their license included in `Resources/lucide-LICENSE.txt`.

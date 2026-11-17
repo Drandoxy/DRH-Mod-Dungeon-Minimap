@@ -179,16 +179,16 @@ class Minimap extends Sprite {
 		var counterTop = footerTop + (FOOTER_H + PAD - 18) / 2;
 		var xpLeft = PAD + 48;
 		assets = new AssetLoadingComponent(ctx.core.facade);
-		addLucideCounter("coins",PAD,footerTop+9,0xFFD76A);
-		addLucideCounter("sparkles",xpLeft,footerTop+9,0x58C9FF);
+		addCounterIcon("Resources/Art2D/UI/db_UI_HUD.swf", "coin_icon", PAD, footerTop, 19);
+		addCounterIcon("Resources/Art2D/Doobers/db_items_doobers.swf", "doober_xp_star", xpLeft + 0.75, footerTop, 16.5);
 		goldLabel = label(new TextFormat("Arial", 12, 0xFFD700, true), PAD + 18, counterTop, 28);
 		xpLabel = label(new TextFormat("Arial", 12, 0x58C9FF, true), xpLeft + 18, counterTop, 24);
 		footer.addChild(goldLabel);
         footer.addChild(xpLabel);
 		goldLabel.text = "0";
 		xpLabel.text = "0";
-		zoomOut = addZoomButton(116, footerTop + 6, false);
-		zoomIn = addZoomButton(134, footerTop + 6, true);
+		zoomOut = addZoomButton(116, footerTop + 7, false);
+		zoomIn = addZoomButton(134, footerTop + 7, true);
         lockButton=makeButton("lock-keyhole",footerTop+7,toggleAspectLock);
         gateButton=makeButton("castle",footerTop+7,function(event:openfl.events.MouseEvent){
             event.stopPropagation();gateCodes=!gateCodes;drawButton(gateButton,"castle",gateCodes);refreshGateDetails();
@@ -209,8 +209,8 @@ class Minimap extends Sprite {
 
     function drawButton(button:Sprite,name:String,active:Bool,hover:Bool=false):Void{
         var g=button.graphics;g.clear();g.lineStyle(1,active?0x82DE91:0x536977);
-        g.beginFill(active?0xA5E8AD:(hover?0x3E5665:0x293D49));g.drawRoundRect(0,0,18,20,6,6);g.endFill();
-        var icon:Sprite=cast button.getChildAt(0);MapIcons.draw(icon,name,14,active?0x15572C:0xE8F0F5);icon.x=2;icon.y=3;
+        g.beginFill(active?0xA5E8AD:(hover?0x3E5665:0x293D49));g.drawRoundRect(0,0,18,18,6,6);g.endFill();
+        var icon:Sprite=cast button.getChildAt(0);MapIcons.draw(icon,name,14,active?0x15572C:0xE8F0F5);icon.x=2;icon.y=2;
     }
 
     function makeButton(name:String,y:Float,action:openfl.events.MouseEvent->Void):Sprite{
@@ -399,9 +399,9 @@ class Minimap extends Sprite {
         breakableLayer.scrollRect = new Rectangle(0, 0, mapWidth, mapHeight);
         floorLabel.x = panelWidth - PAD - 75;
         footer.y = mapHeight - DEFAULT_MAP_H;
-        gateButton.x=panelWidth-86;
-        zoomOut.x = panelWidth - 66;
-        zoomIn.x = panelWidth - 46;
+        gateButton.x=panelWidth-92;
+        zoomOut.x = panelWidth - 70;
+        zoomIn.x = panelWidth - 48;
         lockButton.x = panelWidth - 26;
         if(gateLabel!=null)gateLabel.width=mapWidth;
         graphics.clear();

@@ -2,7 +2,7 @@
   "id": "dungeon_minimap",
   "name": "Dungeon Minimap",
   "description": "A zoomable dungeon map with walls, chests, party markers, and gold and XP counters.",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "author": "Drandox",
   "api": "1.4.0",
   "entry": "Main",
