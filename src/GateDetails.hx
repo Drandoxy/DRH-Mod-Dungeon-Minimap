@@ -17,7 +17,7 @@ class GateDetails {
    seen.push(detail);lines.push(detail);
    lines.push("Triggered: "+Std.string(Reflect.getProperty(actor,"triggerState"))+" | Breakable: "+Std.string(Reflect.getProperty(actor,"isAttackable")));
   }
-  if(seen.length==0)lines.push("Exit gate: not available yet");
+  if(seen.length==0)lines.push(mode=="BOSS_CLEAR"?"Objective: defeat the boss (no exit gate actor)":"Exit gate: not available yet");
   return lines.join("\n");
  }
 }
