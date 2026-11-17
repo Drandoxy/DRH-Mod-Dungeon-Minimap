@@ -48,6 +48,7 @@ class Minimap extends Sprite {
 	static inline final WALL_REFRESH_MS = 1000;
 
 	var ctx:Context;
+    var gateLog:GateLog;
 	var refs:Refs;
 	var startTime:Int;
 
@@ -123,6 +124,7 @@ class Minimap extends Sprite {
 	public function new(ctx:Context, refs:Refs, startTime:Int, placement:PanelPlacement) {
 		super();
 		this.ctx = ctx;
+        gateLog = new GateLog(ctx.data);
 		this.placement = placement;
 		zoomLevel = placement.zoom;
 		this.refs = refs;
@@ -539,6 +541,11 @@ class Minimap extends Sprite {
             } catch (_:Dynamic) {
                 // Keep the exit visible while its actors are unavailable.
             }
+            if(gateLog!=null&&gateLog.enabled)try{
+                var apiFloor=ctx.state.floor;var tileId="unknown";
+                if(apiFloor!=null)for(t in apiFloor.tiles)if(t.x==position.x&&t.y==position.y){tileId=t.id;break;}
+                gateLog.record(apiFloor==null?"unknown":Std.string(apiFloor.id),tileId,position.x,position.y,exitTiles.get(key),color,grid==null?null:grid.getTileAtPosition(position));
+            }catch(_:Dynamic){}
             if (exitColors.get(key) != color) {
                 exitColors.set(key, color);
                 changed = true;
@@ -1025,6 +1032,8 @@ class Minimap extends Sprite {
 	}
 
 	public function destroy():Void {
+        if(gateLog!=null)gateLog.clear();
+        gateLog=null;
 		destroyed = true;
 		if (assets != null) assets.destroy();
 		assets = null;
