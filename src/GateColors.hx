@@ -14,6 +14,20 @@ class GateColors {
             color == GREEN || color == RED || color == UNKNOWN;
     }
 
+    /** This tile ID is shared by Dino (three plates) and Tribal (NPC life trigger). */
+    public static function resolveMode(tile:Dynamic,tileId:String,mode:String):String {
+        if(tileId!="124.1320354772680"||tile==null)return mode;
+        var actors:Dynamic=Reflect.getProperty(tile,"NPCGameObjects");
+        var entries:Array<Dynamic>=[];
+        if(actors==null)return mode;
+        if(Std.isOfType(actors,Array))entries=cast actors;
+        else {var fn=Reflect.field(actors,"iterator");if(fn!=null){var it:Dynamic=Reflect.callMethod(actors,fn,[]);while(it.hasNext())entries.push(it.next());}}
+        for(actor in entries){var gm=Reflect.getProperty(actor,"gmNpc");var name=gm==null?null:Reflect.field(gm,"Constant");
+            if(name=="JURASSIC_DINO_EXIT_GATE_A")return "PLATE";
+        }
+        return mode;
+    }
+
     public static function forTile(tile:Dynamic, mode:String):Int {
         if (mode == "BOSS_CLEAR") return PURPLE;
         if (tile == null) return UNKNOWN;

@@ -537,7 +537,11 @@ class Minimap extends Sprite {
             var color = GateColors.UNKNOWN;
             try {
                 var tile = grid == null ? null : grid.getTileAtPosition(position);
-                color = GateColors.forTile(tile, exitTiles.get(key));
+                var tileId="unknown";var apiFloor=ctx.state.floor;
+                if(apiFloor!=null)for(t in apiFloor.tiles)if(t.x==position.x&&t.y==position.y){tileId=t.id;break;}
+                var mode=GateColors.resolveMode(tile,tileId,exitTiles.get(key));
+                exitTiles.set(key,mode);
+                color = GateColors.forTile(tile, mode);
             } catch (_:Dynamic) {
                 // Keep the exit visible while its actors are unavailable.
             }
