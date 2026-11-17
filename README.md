@@ -5,7 +5,7 @@ A zoomable map with dungeon-specific palettes, walls, purple breakable-wall mark
 
 Use **- / +** to zoom. At higher zoom, the map follows you. Drag inside the map to look around, or drag the header to move the panel. Drag a bottom corner to resize. Click the lock beside the zoom buttons to resize width and height independently. At 1x zoom, the whole floor fits the panel without stretching. The mod remembers your layout, zoom, and lock setting. Use **Reset minimap size and location** in Settings to restore the default panel size and position.
 
-Click the **castle button** to show full gate type codes below the gold and XP counters. Green means gate details are enabled. For a color report, include the map, these details, and the gate in the game in your screenshot. Details include the tile ID, assigned mode, map color, raw gate type and name, and trigger/breakable states. Click again to hide them.
+Click the **castle button** to show full gate type codes below the gold and XP counters. Green means gate details are enabled. For a color report, include the map, these details, and the gate in the game in your screenshot. Details show the assigned gate mode and full exit gate type code and name, without listing traps or breakable props. Click again to hide them.
 
 Exit colors follow Xk's Minimap: orange for a trigger, purple for enemy kills, cyan for a breakable blocker, green for open, red for closed, and grey for unknown.
 
