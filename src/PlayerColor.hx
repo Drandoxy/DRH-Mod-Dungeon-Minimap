@@ -2,10 +2,12 @@ package mods.dungeon_minimap;
 
 class PlayerColor {
 	public static function fromName(name:String):Int {
-		if (name == null || StringTools.trim(name) == "") return 0xFFFFFF;
+		if (name == null || StringTools.trim(name) == "")
+			return 0xFFFFFF;
 		var normalized = StringTools.trim(name).toLowerCase();
 		var hash = 0;
-		for (i in 0...normalized.length) hash = (hash * 131 + normalized.charCodeAt(i)) % 65521;
+		for (i in 0...normalized.length)
+			hash = (hash * 131 + normalized.charCodeAt(i)) % 65521;
 		var hue = (hash % 360) / 60;
 		var middle = 165 * (1 - Math.abs(hue % 2 - 1));
 		var low = 86;

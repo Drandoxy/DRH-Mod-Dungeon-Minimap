@@ -59,4 +59,5 @@ Requires DRH 18 and Mod API 1.4.0 or a compatible later 1.x version. [GPLv3](LIC
 
 Footer button icons are from [Lucide](https://lucide.dev), with their license included in `Resources/lucide-LICENSE.txt`.
 
-Local gate diagnostics can be enabled by creating `gate_logging.enabled` in the mod data directory. Changed snapshots are written to `gate-logs` while the minimap is active, independently of the castle panel. Logs are local only and rotate across five files of about 2 MB each. Remove the marker and restart to stop logging.
+
+Gate details remain available in the map controls. Automatic gate log collection is not included.
