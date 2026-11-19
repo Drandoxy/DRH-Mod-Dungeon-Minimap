@@ -207,15 +207,6 @@ class Minimap extends Sprite {
 		addEventListener(Event.ENTER_FRAME, onFrame);
 	}
 
-	function addLucideCounter(name:String, x:Float, y:Float, color:Int):Void {
-		var icon = new Sprite();
-		MapIcons.draw(icon, name, 16, color);
-		icon.x = x;
-		icon.y = y;
-		icon.mouseEnabled = false;
-		footer.addChild(icon);
-	}
-
 	function drawButton(button:Sprite, name:String, active:Bool, hover:Bool = false):Void {
 		var g = button.graphics;
 		g.clear();
